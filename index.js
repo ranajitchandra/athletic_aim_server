@@ -174,7 +174,7 @@ async function run() {
             //     }
             // }
 
-            const result = await gardenTips.updateOne(filter, updatedDoc, options);
+            const result = await eventsCollecttion.updateOne(filter, updatedDoc, options);
 
             res.send(result);
         })
