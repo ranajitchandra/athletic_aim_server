@@ -92,9 +92,10 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect();
+        await client.connect();
 
         const eventsCollecttion = client.db('athleticAimDB').collection('events')
+        const eventBooking = client.db('athleticAimDB').collection('eventBooking')
 
 
         // jwt token related api
@@ -106,36 +107,156 @@ async function run() {
             const token = jwt.sign(user, process.env.JWT_ACCESS_SECRET, {
                 expiresIn: '1h',
             })
-
             // set token in the cookie 
 
             // res.cookie('Token', token, {
             // 	httpOnly: true,
             // 	secure: false,
             // })
-
             res.cookie('Token', token, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
 
             })
-
-
             res.send({ token })
         })
 
         app.post('/addEvent', async (req, res) => {
-            const newJob = req.body
-            console.log(newJob)
-            const result = await eventsCollecttion.insertOne(newJob)
+            const newEvent = req.body
+            console.log(newEvent)
+            const result = await eventsCollecttion.insertOne(newEvent)
             res.send(result)
         })
 
 
+
+        // // -------------------------------------
+        app.get('/events', async (req, res) => {
+            const email = req.query.email
+            console.log(req);
+
+
+            const query = {}
+            if (email) {
+                query.creatorEmail = email
+            }
+            const result = await eventsCollecttion.find(query).toArray()
+            res.send(result)
+        })
+
+        app.get('/events/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await eventsCollecttion.findOne(query)
+            res.send(result)
+        })
+
+        app.post('/eventBooking', async (req, res) => {
+            const eventData = req.body
+            console.log(eventData)
+
+            const result = await eventBooking.insertOne(eventData)
+            res.send(result)
+        })
+
+        // could be done but should not be done
+        // app.get('jobsByEmail', async(req, res) => {
+        //     const email = req.query.email;
+        //     const query = {
+        //         hr_email: email
+        //     }
+        //     const result = await jobCollecttion.find(query).toArray();
+        // })
+
+        // // --------------------------------------------------
+
+        // app.get(
+        //     '/jobs/applicantCount',
+        //     verifyTokenOfJWT,
+        //     verifyTokenEmail,
+        //     async (req, res) => {
+        //         const email = req.query.email
+
+
+        //         // if (email !== req.decoded.email && email !== req.tokenEmail) {
+        //         //     // in this condition firebase and jwt email verify
+        //         //     return res.status(403).send({ message: 'forbidden access' })
+        //         // }
+        //         const query = { hr_email: email }
+        //         const jobs = await jobCollecttion.find(query).toArray()
+
+        //         // should use optimum aggregate for data fetching
+
+        //         for (const job of jobs) {
+        //             const applicationQuery = { jobID: job._id.toString() }
+        //             const applicant_Count = await ApplicationCollecttion.countDocuments(
+        //                 applicationQuery,
+        //             )
+        //             job.applicant_Count = applicant_Count
+        //         }
+        //         res.send(jobs)
+        //     },
+        // )
+
+
+
+
+        // app.get(
+        //     '/applications',
+        //     verifyTokenOfJWT,
+        //     verifyTokenEmail,
+        //     async (req, res) => {
+        //         console.log(req);
+
+        //         const email = req.query.email
+        //         // if (email !== req.decoded.email && email !== req.tokenEmail) {
+        //         //     // in this condition firebase and jwt email verify
+        //         //     return res.status(403).send({ message: 'forbidden access' })
+        //         // }
+        //         const query = {
+        //             applicant: email,
+        //         }
+        //         const result = await ApplicationCollecttion.find(query).toArray()
+
+        //         // bad way aggrigate
+        //         for (const application of result) {
+        //             const jobId = application.jobID
+        //             const jobQuery = { _id: new ObjectId(jobId) }
+        //             const job = await jobCollecttion.findOne(jobQuery)
+        //             application.company = job.company
+        //             application.title = job.title
+        //             application.company_logo = job.company_logo
+        //         }
+
+        //         res.send(result)
+        //     },
+        // )
+
+        // app.get('/viewApplicants/fromJob/:job_id', async (req, res) => {
+        //     const get_job_id = req.params.job_id
+        //     const query = { jobID: get_job_id }
+        //     const result = await ApplicationCollecttion.find(query).toArray()
+        //     res.send(result)
+        // })
+
+        // app.patch(`/applicationStatusUpdate/:id`, async (req, res) => {
+        //     const id = req.params.id
+        //     const filter = { _id: new ObjectId(id) }
+        //     console.log(req.body.status)
+
+        //     const updatedDoc = {
+        //         $set: {
+        //             status: req.body.status,
+        //         },
+        //     }
+        //     const result = await ApplicationCollecttion.updateOne(filter, updatedDoc)
+        //     res.send(result)
+        // })
+
         // Send a ping to confirm a successful connection
-        // await client.db("admin").command({ ping: 1 });
-        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
@@ -144,9 +265,9 @@ async function run() {
 run().catch(console.dir)
 
 app.get('/', (req, res) => {
-    res.send('Jop portal root path')
+    res.send('Athletic Aim Server root path')
 })
 
 app.listen(port, () => {
-    console.log(`job portal server is running on port: ${port}`)
+    console.log(`Athletic aim server is running on port: ${port}`)
 })
