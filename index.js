@@ -152,6 +152,33 @@ async function run() {
             res.send(result)
         })
 
+        app.delete('/events/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await eventsCollecttion.deleteOne(query);
+            res.send(result);
+        })
+        app.put('/events/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true };
+            const updatedEvent = req.body;
+            const updatedDoc = {
+                $set: updatedEvent
+            }
+
+            // const updatedDoc = {
+            //     $set: {
+            //         name: updatedEvent.name, 
+            //         supplier: updatedEvent.supplier
+            //     }
+            // }
+
+            const result = await gardenTips.updateOne(filter, updatedDoc, options);
+
+            res.send(result);
+        })
+
         app.post('/eventBooking', async (req, res) => {
             const eventData = req.body
             console.log(eventData)
@@ -159,6 +186,15 @@ async function run() {
             const result = await eventBooking.insertOne(eventData)
             res.send(result)
         })
+        app.get('/eventBooking/:id', async (req, res) => {
+            const id = req.params.id;
+            console.log(id);
+
+            const query = { eventID: id };
+            const result = await eventBooking.findOne(query);
+            res.send(result);
+        });
+
 
         // could be done but should not be done
         // app.get('jobsByEmail', async(req, res) => {
