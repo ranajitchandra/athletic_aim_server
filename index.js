@@ -196,99 +196,37 @@ async function run() {
         });
 
 
-        // could be done but should not be done
-        // app.get('jobsByEmail', async(req, res) => {
-        //     const email = req.query.email;
-        //     const query = {
-        //         hr_email: email
-        //     }
-        //     const result = await jobCollecttion.find(query).toArray();
-        // })
+        app.get(
+            '/bookedEvent',
+            verifyTokenOfJWT,
+            verifyTokenEmail,
+            async (req, res) => {
+                console.log(req);
 
-        // // --------------------------------------------------
+                const email = req.query.email
+                
+                const query = {
+                    bookedUser: email,
+                }
+                const result = await eventBooking.find(query).toArray()
 
-        // app.get(
-        //     '/jobs/applicantCount',
-        //     verifyTokenOfJWT,
-        //     verifyTokenEmail,
-        //     async (req, res) => {
-        //         const email = req.query.email
+                // bad way aggrigate
+                for (const booking of result) {
+                    const eventID = booking.eventID
+                    const eventQuery = { _id: new ObjectId(eventID) }
+                    const event = await eventsCollecttion.findOne(eventQuery)
 
+                    booking.name = event.name
+                    booking.type = event.type
+                    booking.date = event.date
+                    booking.creatorEmail = event.creatorEmail
+                    booking.contactNumber = event.contactNumber
+                    booking.pictureUrl = event.pictureUrl
+                }
 
-        //         // if (email !== req.decoded.email && email !== req.tokenEmail) {
-        //         //     // in this condition firebase and jwt email verify
-        //         //     return res.status(403).send({ message: 'forbidden access' })
-        //         // }
-        //         const query = { hr_email: email }
-        //         const jobs = await jobCollecttion.find(query).toArray()
-
-        //         // should use optimum aggregate for data fetching
-
-        //         for (const job of jobs) {
-        //             const applicationQuery = { jobID: job._id.toString() }
-        //             const applicant_Count = await ApplicationCollecttion.countDocuments(
-        //                 applicationQuery,
-        //             )
-        //             job.applicant_Count = applicant_Count
-        //         }
-        //         res.send(jobs)
-        //     },
-        // )
-
-
-
-
-        // app.get(
-        //     '/applications',
-        //     verifyTokenOfJWT,
-        //     verifyTokenEmail,
-        //     async (req, res) => {
-        //         console.log(req);
-
-        //         const email = req.query.email
-        //         // if (email !== req.decoded.email && email !== req.tokenEmail) {
-        //         //     // in this condition firebase and jwt email verify
-        //         //     return res.status(403).send({ message: 'forbidden access' })
-        //         // }
-        //         const query = {
-        //             applicant: email,
-        //         }
-        //         const result = await ApplicationCollecttion.find(query).toArray()
-
-        //         // bad way aggrigate
-        //         for (const application of result) {
-        //             const jobId = application.jobID
-        //             const jobQuery = { _id: new ObjectId(jobId) }
-        //             const job = await jobCollecttion.findOne(jobQuery)
-        //             application.company = job.company
-        //             application.title = job.title
-        //             application.company_logo = job.company_logo
-        //         }
-
-        //         res.send(result)
-        //     },
-        // )
-
-        // app.get('/viewApplicants/fromJob/:job_id', async (req, res) => {
-        //     const get_job_id = req.params.job_id
-        //     const query = { jobID: get_job_id }
-        //     const result = await ApplicationCollecttion.find(query).toArray()
-        //     res.send(result)
-        // })
-
-        // app.patch(`/applicationStatusUpdate/:id`, async (req, res) => {
-        //     const id = req.params.id
-        //     const filter = { _id: new ObjectId(id) }
-        //     console.log(req.body.status)
-
-        //     const updatedDoc = {
-        //         $set: {
-        //             status: req.body.status,
-        //         },
-        //     }
-        //     const result = await ApplicationCollecttion.updateOne(filter, updatedDoc)
-        //     res.send(result)
-        // })
+                res.send(result)
+            },
+        )
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
