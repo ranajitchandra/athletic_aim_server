@@ -132,14 +132,22 @@ async function run() {
 
 
         // // -------------------------------------
-        app.get('/events', async (req, res) => {
-            const email = req.query.email
-            console.log(req);
+        app.get('/events', verifyTokenOfJWT, async (req, res) => {
+            const { email, name } = req.query
+            console.log("--------", name);
 
 
             const query = {}
             if (email) {
                 query.creatorEmail = email
+
+                if (email !== req.decoded.email) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
+            }
+
+            if (name) {
+                query.name = { $regex: name, $options: 'i' };
             }
             const result = await eventsCollecttion.find(query).toArray()
             res.send(result)
@@ -204,7 +212,7 @@ async function run() {
                 console.log(req);
 
                 const email = req.query.email
-                
+
                 const query = {
                     bookedUser: email,
                 }
