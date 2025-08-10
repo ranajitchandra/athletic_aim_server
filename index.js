@@ -96,8 +96,10 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
+        const users = client.db('athleticAimDB').collection('users')
         const eventsCollecttion = client.db('athleticAimDB').collection('events')
         const eventBooking = client.db('athleticAimDB').collection('eventBooking')
+        const subscribers = client.db('athleticAimDB').collection('subscribers')
 
 
         // jwt token related api
@@ -123,6 +125,48 @@ async function run() {
             })
             res.send({ token })
         })
+
+
+
+
+
+        
+        //  Create User
+        app.post('/users', async (req, res) => {
+            const email = req.body.email;
+            const userExists = await users.findOne({ email })
+            if (userExists) {
+                // update last log in
+                return res.status(200).send({ message: 'User already exists', inserted: false });
+            }
+            const user = req.body;
+            const result = await users.insertOne(user);
+            res.send(result);
+        })
+
+
+        app.get('/users/:email/role', async (req, res) => {
+            try {
+                const email = req.params.email;
+
+                if (!email) {
+                    return res.status(400).send({ message: 'Email is required' });
+                }
+
+                const user = await users.findOne({ email });
+
+                if (!user) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                res.send({ role: user.role || 'user' });
+            } catch (error) {
+                console.error('Error getting user role:', error);
+                res.status(500).send({ message: 'Failed to get role' });
+            }
+        });
+
+
 
         app.post('/addEvent', async (req, res) => {
             const newEvent = req.body
@@ -256,7 +300,7 @@ async function run() {
 
                 // bad way aggrigate
                 for (const booking of result) {
-                    const eventID = booking.eventID
+                    const eventID = booking.eventId
                     const eventQuery = { _id: new ObjectId(eventID) }
                     const event = await eventsCollecttion.findOne(eventQuery)
 
@@ -266,11 +310,30 @@ async function run() {
                     booking.creatorEmail = event.creatorEmail
                     booking.contactNumber = event.contactNumber
                     booking.pictureUrl = event.pictureUrl
+                    booking.price = event.price
                 }
 
                 res.send(result)
             },
         )
+
+
+
+        app.post("/newsletter/subscribe", async (req, res) => {
+            const { email } = req.body;
+            if (!email || !email.includes("@")) {
+                return res.status(400).json({ message: "Valid email required" });
+            }
+
+            const existing = await subscribers.findOne({ email });
+            if (existing) {
+                return res.status(409).json({ message: "Email already subscribed" });
+            }
+
+            const result = await subscribers.insertOne({ email, subscribedAt: new Date() });
+            res.status(201).json({ message: "Subscribed successfully" });
+        });
+
 
 
         app.post('/create-payment-intent', async (req, res) => {
