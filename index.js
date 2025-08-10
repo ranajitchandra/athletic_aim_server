@@ -7,6 +7,8 @@ const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const admin = require('firebase-admin')
 
+const stripe = require('stripe')(process.env.PAYMENT_GATEWAY_KEY);
+
 const app = express()
 const port = process.env.PORT || 3000
 
@@ -92,7 +94,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        // await client.connect();
+        await client.connect();
 
         const eventsCollecttion = client.db('athleticAimDB').collection('events')
         const eventBooking = client.db('athleticAimDB').collection('eventBooking')
@@ -124,7 +126,10 @@ async function run() {
 
         app.post('/addEvent', async (req, res) => {
             const newEvent = req.body
-            console.log(newEvent)
+            newEvent.date = new Date(newEvent.date);
+            newEvent.price = parseInt(newEvent.price, 10);
+            console.log(newEvent);
+
             const result = await eventsCollecttion.insertOne(newEvent)
             res.send(result)
         })
@@ -152,6 +157,30 @@ async function run() {
             const result = await eventsCollecttion.find(query).toArray()
             res.send(result)
         })
+
+
+        // GET nearest upcoming event
+        app.get("/events/upcoming", async (req, res) => {
+            try {
+                const now = new Date();
+
+                const event = await eventsCollecttion
+                    .find({ date: { $gte: now } }) // compare with Date object
+                    .sort({ date: 1 }) // nearest first
+                    .limit(1)
+                    .toArray();
+
+                if (!event || event.length === 0) {
+                    return res.status(404).json({ message: "No upcoming events" });
+                }
+
+                res.json(event[0]);
+            } catch (error) {
+                console.error("Error fetching upcoming event:", error);
+                res.status(500).json({ message: "Server error" });
+            }
+        });
+
 
         app.get('/events/:id', async (req, res) => {
             const id = req.params.id
@@ -186,6 +215,13 @@ async function run() {
 
             res.send(result);
         })
+
+
+
+
+
+
+
 
         app.post('/eventBooking', async (req, res) => {
             const eventData = req.body
@@ -236,9 +272,36 @@ async function run() {
             },
         )
 
+
+        app.post('/create-payment-intent', async (req, res) => {
+            const amountInCents = req.body.amountInCents
+            try {
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount: amountInCents, // Amount in cents
+                    currency: 'usd',
+                    payment_method_types: ['card'],
+                });
+
+                res.json({ clientSecret: paymentIntent.client_secret });
+            } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+
+
+
+
+
+
+
+
+
+
+
+
         // Send a ping to confirm a successful connection
-        // await client.db("admin").command({ ping: 1 });
-        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        await client.db("admin").command({ ping: 1 });
+        console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
