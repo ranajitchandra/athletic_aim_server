@@ -130,7 +130,7 @@ async function run() {
 
 
 
-        
+
         //  Create User
         app.post('/users', async (req, res) => {
             const email = req.body.email;
@@ -165,6 +165,80 @@ async function run() {
                 res.status(500).send({ message: 'Failed to get role' });
             }
         });
+
+        // Search users by name or email
+        app.get("/users", async (req, res) => {
+            const search = req.query.search || "";
+            const query = {
+                $or: [
+                    { name: { $regex: search, $options: "i" } },
+                    { email: { $regex: search, $options: "i" } },
+                ],
+            };
+            const result = await users.find(query).toArray();
+            res.send(result);
+        });
+
+
+        // Update user role
+        // app.patch("/users/:id", async (req, res) => {
+        //     const { id } = req.params;
+        //     const { role } = req.body;
+        //     const result = await users.updateOne(
+        //         { _id: new ObjectId(id) },
+        //         { $set: { role } }
+        //     );
+        //     res.send(result);
+        // });
+
+
+
+        app.patch('/users/:id', async (req, res) => {
+            const { id } = req.params;
+            const updates = { ...req.body };
+
+            try {
+                // Prevent email from being updated no matter what
+                if ('email' in updates) delete updates.email;
+
+                // Separate role from other fields
+                const role = updates.role;
+                if ('role' in updates) delete updates.role;
+
+                // Prepare the update document
+                const updateDoc = {};
+                if (Object.keys(updates).length > 0) {
+                    updateDoc.$set = updates;
+                }
+                if (role !== undefined) {
+                    updateDoc.$set = {
+                        ...updateDoc.$set,
+                        role: role,
+                    };
+                }
+
+                if (Object.keys(updateDoc).length === 0) {
+                    return res.status(400).send({ message: 'No valid fields provided to update' });
+                }
+
+                const result = await users.updateOne(
+                    { _id: new ObjectId(id) },
+                    updateDoc
+                );
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                res.send({ message: 'User updated', modifiedCount: result.modifiedCount });
+            } catch (error) {
+                console.error(error);
+                res.status(500).send({ message: 'Failed to update user' });
+            }
+        });
+
+
+
 
 
 
